@@ -1,0 +1,104 @@
+import { DeviceType } from '../types/network';
+import { Wifi, Server, MonitorSmartphone, Network, Cable, Plus, Trash2, Save, Upload, Cloud, Radio } from 'lucide-react';
+
+interface ToolbarProps {
+  onAddDevice: (type: DeviceType) => void;
+  onClearAll: () => void;
+  onExport: () => void;
+  onImport: () => void;
+
+  onAddCable?: (type: 'lan' | 'wan') => void;
+  onAddWireless?: () => void;
+}
+
+export default function Toolbar({ onAddDevice, onClearAll, onExport, onImport }: ToolbarProps) {
+  const devices: { type: DeviceType; icon: typeof Wifi; label: string }[] = [
+    { type: 'internet', icon: Cloud, label: 'Internet' },
+    { type: 'isp', icon: Cable, label: 'ISP' },
+    { type: 'router', icon: Wifi, label: 'Router' },
+    { type: 'switch', icon: Network, label: 'Switch' },
+    { type: 'server', icon: Server, label: 'Server' },
+    { type: 'pc', icon: MonitorSmartphone, label: 'PC' }
+  ];
+
+  return (
+    <div className="fixed top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10">
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">Add Devices</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {devices.map(({ type, icon: Icon, label }) => (
+          <button
+            key={type}
+            onClick={() => onAddDevice(type)}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            <Icon className="w-4 h-4" />
+            <span className="text-sm font-medium">{label}</span>
+            <Plus className="w-3 h-3 ml-auto" />
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Add Cables</h3>
+
+        <div className="grid grid-cols-3 gap-2">
+
+          {/* WAN Cable */}
+          <button
+            onClick={() => onAddCable?.('wan')}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            <Cable className="w-4 h-4" />
+            <span className="text-sm font-medium">WAN</span>
+          </button>
+
+          {/* LAN Cable */}
+          <button
+            onClick={() => onAddCable?.('lan')}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            <Cable className="w-4 h-4" />
+            <span className="text-sm font-medium">LAN</span>
+          </button>
+
+          {/* Wireless Link */}
+          <button
+            onClick={() => onAddWireless?.()}
+            className="flex items-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-md hover:bg-yellow-100 transition-colors"
+          >
+            <Radio className="w-4 h-4" />
+            <span className="text-sm font-medium">Wireless</span>
+          </button>
+
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Actions</h3>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onExport}
+            className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            <span className="text-sm font-medium">Export</span>
+          </button>
+          <button
+            onClick={onImport}
+            className="flex items-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-md hover:bg-yellow-100 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            <span className="text-sm font-medium">Import</span>
+          </button>
+          <button
+            onClick={onClearAll}
+            className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="text-sm font-medium">Clear All</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
