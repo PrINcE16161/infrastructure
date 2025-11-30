@@ -29,7 +29,9 @@ export interface Cable {
   id: string;
   from: string;
   to: string;
-  type: 'lan' | 'wan';
+  fromPort: 'top' | 'bottom' | 'left' | 'right';
+  toPort: 'top' | 'bottom' | 'left' | 'right';
+  type: 'lan' | 'wan' | 'wireless';
   connected: boolean;
 }
 
@@ -53,4 +55,12 @@ export interface NetworkState {
     deviceOffline: number;
     portAttempts: number;
   };
+}
+
+export interface Cable {
+  id: string;
+  type: 'lan' | 'wan' | 'wireless';
+  from: string; // device ID
+  to: string;   // device ID
+  connected: boolean;
 }
