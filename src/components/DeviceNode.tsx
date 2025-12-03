@@ -5,7 +5,8 @@ import {
   Server,
   MonitorSmartphone,
   Network,
-  Cable
+  Cable,
+  ShieldCheck
 } from 'lucide-react';
 
 interface ConnectionPoint {
@@ -29,6 +30,7 @@ interface DeviceNodeProps {
 const getDeviceIcon = (type: string) => {
   switch (type) {
     case 'internet': return Cloud;
+    case 'proxy': return ShieldCheck;
     case 'isp': return Cable;
     case 'router': return Router;
     case 'switch': return Network;
@@ -42,11 +44,12 @@ const getDeviceColor = (device: Device) => {
   if (device.status === 'disconnected') return 'bg-red-500';
 
   switch (device.type) {
-    case 'internet': return 'bg-sky-500'
+    case 'internet': return 'bg-sky-500';
+    case 'proxy': return 'bg-orange-500'
     case 'isp': return 'bg-blue-500';
     case 'router': return 'bg-green-500';
     case 'switch': return 'bg-yellow-500';
-    case 'server': return 'bg-orange-500';
+    case 'server': return 'bg-stone-500';
     case 'pc': return 'bg-gray-500';
     default: return 'bg-gray-500';
   }

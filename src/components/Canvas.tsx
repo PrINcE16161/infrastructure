@@ -75,28 +75,60 @@ export default function Canvas({ devices, cables, animatingPath, animationSucces
       // ctx.beginPath();
       // ctx.moveTo(fromPos.x, fromPos.y);
       // ctx.lineTo(toPos.x, toPos.y);
-      
-      // 🎯 Auto-curved cable using quadratic Bézier curve
+
+      // 🎯 90-degree routing with curved corners
       ctx.beginPath();
 
       const dx = toPos.x - fromPos.x;
       const dy = toPos.y - fromPos.y;
+      const curveRadius = 15; // Radius of the corner curves
 
-      // Curve amount based on distance
-      const curve = Math.max(0, Math.min(200, (Math.abs(dx) + Math.abs(dy)) / 2));
+      // Determine routing based on port directions
+      const isHorizontalFirst = cable.fromPort === 'right' || cable.fromPort === 'left';
+      const isVerticalFirst = cable.fromPort === 'top' || cable.fromPort === 'bottom';
 
-      // Control point
-      let cx = fromPos.x;
-      let cy = fromPos.y;
+      // Check if nodes are aligned (straight line)
+      const isAlignedHorizontal = Math.abs(dy) < 5;
+      const isAlignedVertical = Math.abs(dx) < 5;
 
-      // Smart routing based on port directions
-      if (cable.fromPort === 'right') cx += curve;
-      if (cable.fromPort === 'left') cx -= curve;
-      if (cable.fromPort === 'top') cy -= curve;
-      if (cable.fromPort === 'bottom') cy += curve;
+      if (isAlignedHorizontal || isAlignedVertical) {
+        // Straight line connection
+        ctx.moveTo(fromPos.x, fromPos.y);
+        ctx.lineTo(toPos.x, toPos.y);
+      } else {
+        // 90-degree routing with curve
+        ctx.moveTo(fromPos.x, fromPos.y);
 
-      ctx.moveTo(fromPos.x, fromPos.y);
-      ctx.quadraticCurveTo(cx, cy, toPos.x, toPos.y);
+        if (isHorizontalFirst) {
+          // Go horizontal first, then vertical
+          const cornerX = toPos.x;
+          const cornerY = fromPos.y;
+          
+          // Horizontal segment (with curve approach)
+          const horizontalEnd = cornerX - (dx > 0 ? curveRadius : -curveRadius);
+          ctx.lineTo(horizontalEnd, fromPos.y);
+          
+          // Curved corner
+          ctx.arcTo(cornerX, cornerY, cornerX, toPos.y, curveRadius);
+          
+          // Vertical segment to end
+          ctx.lineTo(toPos.x, toPos.y);
+        } else {
+          // Go vertical first, then horizontal
+          const cornerX = fromPos.x;
+          const cornerY = toPos.y;
+          
+          // Vertical segment (with curve approach)
+          const verticalEnd = cornerY - (dy > 0 ? curveRadius : -curveRadius);
+          ctx.lineTo(fromPos.x, verticalEnd);
+          
+          // Curved corner
+          ctx.arcTo(cornerX, cornerY, toPos.x, cornerY, curveRadius);
+          
+          // Horizontal segment to end
+          ctx.lineTo(toPos.x, toPos.y);
+        }
+      }
 
       if (cable.connected) {
         switch (cable.type) {

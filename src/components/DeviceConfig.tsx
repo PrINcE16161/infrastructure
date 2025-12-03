@@ -54,6 +54,31 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
             )}
           </div>
 
+          {device.type === 'proxy' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Internal IP</label>
+                <input
+                  type="text"
+                  placeholder="192.168.1.100"
+                  value={device.config.internalIp || ''}
+                  onChange={(e) => updateConfig({ internalIp: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gateway</label>
+                <input
+                  type="text"
+                  placeholder="192.168.1.1"
+                  value={device.config.gateway || ''}
+                  onChange={(e) => updateConfig({ gateway: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </>
+          )}
+
           {device.type === 'router' && (
             <>
               <div>

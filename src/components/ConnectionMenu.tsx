@@ -1,15 +1,6 @@
-import { Device } from '../types/network';
+import { useState } from 'react';
+import {ConnectionMenuProps } from '../types/network';
 import { Cable as CableIcon, Zap, Trash2, Radio } from 'lucide-react';
-
-interface ConnectionMenuProps {
-  position: { x: number; y: number };
-  sourceDevice: Device;
-  devices: Device[];
-  onConnect: (targetId: string, cableType: 'lan' | 'wan' | 'wireless') => void;
-  onSendPacket: (targetId: string) => void;
-  onDisconnect: (targetId: string) => void;
-  connectedDevices: string[];
-}
 
 export default function ConnectionMenu({
   position,
@@ -20,7 +11,19 @@ export default function ConnectionMenu({
   onDisconnect,
   connectedDevices
 }: ConnectionMenuProps) {
+  
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [selectedCable, setSelectedCable] = useState<'lan' | 'wan' | 'wireless' | null>(null);
+
   const otherDevices = devices.filter(d => d.id !== sourceDevice.id);
+
+  const handlePortSelect = (port: 'top' | 'left' | 'bottom' | 'right') => {
+    if (selectedDevice && selectedCable) {
+      onConnect(selectedDevice, selectedCable, port);
+      setSelectedDevice(null);
+      setSelectedCable(null);
+    }
+  };
 
   return (
     <div
@@ -37,33 +40,41 @@ export default function ConnectionMenu({
 
           return (
             <div key={device.id} className="flex items-center gap-2">
-              <span className="text-xs text-gray-600 flex-1">{device.type === 'internet' ? 'INTERNET' : device.name}</span>
+              <span className="text-xs text-gray-600 flex-1">
+                {device.type === 'internet' ? 'INTERNET' : device.name}
+              </span>
 
               {!isConnected ? (
                 <>
+                  {/* Choose cable → then port */}
                   <button
-                    onClick={() => onConnect(device.id, 'wan')}
+                    onClick={() => {
+                      setSelectedDevice(device.id);
+                      setSelectedCable('wan');
+                    }}
                     className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs hover:bg-blue-100 flex items-center gap-1"
-                    title="Connect WAN"
                   >
-                    <CableIcon className="w-3 h-3" />
-                    WAN
+                    <CableIcon className="w-3 h-3" /> WAN
                   </button>
+
                   <button
-                    onClick={() => onConnect(device.id, 'lan')}
+                    onClick={() => {
+                      setSelectedDevice(device.id);
+                      setSelectedCable('lan');
+                    }}
                     className="px-2 py-1 bg-gray-50 text-gray-700 rounded text-xs hover:bg-gray-100 flex items-center gap-1"
-                    title="Connect LAN"
                   >
-                    <CableIcon className="w-3 h-3" />
-                    LAN
+                    <CableIcon className="w-3 h-3" /> LAN
                   </button>
+
                   <button
-                    onClick={() => onConnect(device.id, 'wireless')}
+                    onClick={() => {
+                      setSelectedDevice(device.id);
+                      setSelectedCable('wireless');
+                    }}
                     className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-xs hover:bg-yellow-100 flex items-center gap-1"
-                    title="Connect LAN"
                   >
-                    <Radio className="w-3 h-3" />
-                    Wireless
+                    <Radio className="w-3 h-3" /> Wireless
                   </button>
                 </>
               ) : (
@@ -71,15 +82,13 @@ export default function ConnectionMenu({
                   <button
                     onClick={() => onSendPacket(device.id)}
                     className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-xs hover:bg-yellow-100 flex items-center gap-1"
-                    title="Send Packet"
                   >
-                    <Zap className="w-3 h-3" />
-                    Send
+                    <Zap className="w-3 h-3" /> Send
                   </button>
+
                   <button
                     onClick={() => onDisconnect(device.id)}
                     className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs hover:bg-red-100 flex items-center gap-1"
-                    title="Disconnect"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -88,6 +97,23 @@ export default function ConnectionMenu({
             </div>
           );
         })}
+
+        {/* PORT SELECTOR POPUP */}
+        {selectedDevice && selectedCable && (
+          <div className="mb-3 p-2 bg-gray-50 border rounded-lg">
+            <div className="grid grid-cols-4 gap-1">
+              {['left', 'top', 'bottom', 'right'].map(port => (
+                <button
+                  key={port}
+                  onClick={() => handlePortSelect(port as any)}
+                  className="px-2 py-1 bg-blue-50 rounded text-xs text-blue-700 hover:bg-blue-100"
+                >
+                  {port.charAt(0).toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

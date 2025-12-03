@@ -1,4 +1,7 @@
-export type DeviceType = 'internet' | 'isp' | 'router' | 'switch' | 'server' | 'pc';
+export type DeviceType = 'internet' | 'proxy' | 'isp' | 'router' | 'switch' | 'server' | 'pc';
+export type DeviceStatus = 'connected' | 'disconnected';
+export type Direction = 'top' | 'left' | 'right' | 'bottom';
+export type cableType = 'lan' | 'wan' | 'wireless';
 
 export interface Position {
   x: number;
@@ -11,7 +14,7 @@ export interface Device {
   name: string;
   position: Position;
   config: DeviceConfig;
-  status: 'connected' | 'disconnected';
+  status: DeviceStatus;
 }
 
 export interface DeviceConfig {
@@ -29,9 +32,9 @@ export interface Cable {
   id: string;
   from: string;
   to: string;
-  fromPort: 'top' | 'bottom' | 'left' | 'right';
-  toPort: 'top' | 'bottom' | 'left' | 'right';
-  type: 'lan' | 'wan' | 'wireless';
+  fromPort: Direction;
+  toPort: Direction;
+  type: cableType;
   connected: boolean;
 }
 
@@ -57,10 +60,12 @@ export interface NetworkState {
   };
 }
 
-export interface Cable {
-  id: string;
-  type: 'lan' | 'wan' | 'wireless';
-  from: string; // device ID
-  to: string;   // device ID
-  connected: boolean;
+export interface ConnectionMenuProps {
+  position: { x: number; y: number };
+  sourceDevice: Device;
+  devices: Device[];
+  onConnect: (targetId: string, cableType: cableType, port: Direction) => void;
+  onSendPacket: (targetId: string) => void;
+  onDisconnect: (targetId: string) => void;
+  connectedDevices: string[];
 }
