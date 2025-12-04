@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import {ConnectionMenuProps } from '../types/network';
+import {Direction, ConnectionMenuProps } from '../types/network';
 import { Cable as CableIcon, Zap, Trash2, Radio } from 'lucide-react';
 
 export default function ConnectionMenu({
@@ -24,6 +24,7 @@ export default function ConnectionMenu({
       setSelectedCable(null);
     }
   };
+  const ports: Direction[] = ["left", "top", "bottom", "right"];
 
   return (
     <div
@@ -102,10 +103,10 @@ export default function ConnectionMenu({
         {selectedDevice && selectedCable && (
           <div className="mb-3 p-2 bg-gray-50 border rounded-lg">
             <div className="grid grid-cols-4 gap-1">
-              {['left', 'top', 'bottom', 'right'].map(port => (
+              {ports.map((port) => (
                 <button
                   key={port}
-                  onClick={() => handlePortSelect(port as any)}
+                  onClick={() => handlePortSelect(port)}
                   className="px-2 py-1 bg-blue-50 rounded text-xs text-blue-700 hover:bg-blue-100"
                 >
                   {port.charAt(0).toUpperCase()}

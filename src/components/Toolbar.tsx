@@ -1,7 +1,7 @@
 import { DeviceType } from '../types/network';
 import { 
   Wifi, Server, MonitorSmartphone, Network, Cable, Plus, 
-  Trash2, Save, Upload, Cloud, ShieldCheck, PanelLeft, X
+  Trash2, Save, Upload, Cloud, ShieldCheck, MoveLeft, PanelLeft, X
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -9,7 +9,7 @@ interface ToolbarProps {
   onClearAll: () => void;
   onExport: () => void;
   onImport: () => void;
-
+  onLogout: () => void;
   onAddCable?: (type: 'lan' | 'wan') => void;
   onAddWireless?: () => void;
 
@@ -17,7 +17,7 @@ interface ToolbarProps {
   setShowPanel: (v: boolean) => void;
 }
 
-export default function Toolbar({ onAddDevice, onClearAll, onExport, onImport, showPanel, setShowPanel }: ToolbarProps) {
+export default function Toolbar({ onAddDevice, onClearAll, onExport, onImport, onLogout,  showPanel, setShowPanel }: ToolbarProps) {
   
   const devices: { type: DeviceType; icon: typeof Wifi; label: string }[] = [
     { type: 'internet', icon: Cloud, label: 'Internet' },
@@ -109,6 +109,14 @@ export default function Toolbar({ onAddDevice, onClearAll, onExport, onImport, s
               >
                 <Trash2 className="w-4 h-4" />
                 <span className="text-sm font-medium">Clear All</span>
+              </button>
+
+              <button
+                onClick={onLogout}
+                className="flex items-center gap-2 px-3 py-2 bg-red-50 bg-red-500 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                <MoveLeft className="w-4 h-4" />
+                <span className="text-sm font-medium">Logout</span>
               </button>
             </div>
           </div>

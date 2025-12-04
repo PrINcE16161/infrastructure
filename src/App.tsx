@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Device, Cable, NetworkState, DeviceType } from './types/network';
-import { saveNetworkState, loadNetworkState } from './utils/storage';
+import { Device, Cable, NetworkState, DeviceType, User } from './types/network';
+import { saveNetworkState, loadNetworkState, loadAuthToken, saveAuthToken, clearAuthToken } from './utils/storage';
 import { simulatePacket, createPacketLog } from './utils/packetSimulation';
 import DeviceNode from './components/DeviceNode';
 import DeviceConfig from './components/DeviceConfig';
@@ -8,6 +8,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import Dashboard from './components/Dashboard';
 import ConnectionMenu from './components/ConnectionMenu';
+import Login from './components/Login';
 
 function App() {
   const [state, setState] = useState<NetworkState>({
@@ -22,7 +23,7 @@ function App() {
       portAttempts: 0
     }
   });
-
+  const [user, setUser] = useState<User | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [connectionMenu, setConnectionMenu] = useState<{
     device: Device;
@@ -32,6 +33,37 @@ function App() {
   const [animatingPath, setAnimatingPath] = useState<string[]>([]);
   const [animationSuccess, setAnimationSuccess] = useState(false);
   
+  useEffect(() => {
+    const token = loadAuthToken();
+    if (token) {
+      const email = atob(token.split('.')[0]);
+      setUser({ id: token, email });
+    }
+  }, []);
+
+  const handleLogin = (email: string) => {
+    const token = btoa(email) + '.' + Date.now();
+    saveAuthToken(token);
+    setUser({ id: token, email });
+  };
+
+  const handleLogout = () => {
+    clearAuthToken();
+    setUser(null);
+    setState({
+      devices: [],
+      cables: [],
+      logs: [],
+      stats: {
+        packetsDelivered: 0,
+        packetsDropped: 0,
+        deviceOnline: 0,
+        deviceOffline: 0,
+        portAttempts: 0
+      },
+    });
+  };
+
   useEffect(() => {
     const saved = loadNetworkState();
     if (saved) {
@@ -65,11 +97,35 @@ function App() {
     setState(prev => ({ ...prev, devices: [...prev.devices, newDevice] }));
   }, [state.devices]);
 
-  const updateDevice = useCallback((device: Device) => {
+  const updateDevice = useCallback((deviceId: string, updates: Partial<Device>) => {
     setState(prev => ({
       ...prev,
-      devices: prev.devices.map(d => (d.id === device.id ? device : d))
+      devices: prev.devices.map(d => {
+        if (d.id !== deviceId) return d;
+
+        return {
+          ...d,
+          ...updates,
+          config: updates.config !== undefined 
+            ? { ...d.config, ...updates.config }
+            : d.config
+        };
+      })
     }));
+    
+    // Update selectedDevice if it's the one being updated
+    setSelectedDevice(prev => {
+      if (prev?.id === deviceId) {
+        return {
+          ...prev,
+          ...updates,
+          config: updates.config !== undefined 
+            ? { ...prev.config, ...updates.config }
+            : prev.config
+        };
+      }
+      return prev;
+    });
   }, []);
 
   const deleteDevice = useCallback((id: string) => {
@@ -254,6 +310,10 @@ function App() {
 
   const [showPanel, setShowPanel] = useState(true);
 
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
       <Toolbar
@@ -261,6 +321,7 @@ function App() {
         onClearAll={clearAll}
         onExport={exportData}
         onImport={importData}
+        onLogout={handleLogout}
         showPanel={showPanel}
         setShowPanel={setShowPanel}
       />

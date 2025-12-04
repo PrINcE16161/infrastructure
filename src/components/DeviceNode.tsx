@@ -1,4 +1,4 @@
-import { Device } from '../types/network';
+import { Device, Direction } from '../types/network';
 import {
   Cloud,
   Router,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 interface ConnectionPoint {
-  position: 'top' | 'bottom' | 'left' | 'right';
+  position: Direction;
   x: number;
   y: number;
 }
@@ -21,7 +21,7 @@ interface DeviceNodeProps {
   onDragStart: (e: React.DragEvent, device: Device) => void;
   onDrag: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
-  onConnectionPointClick?: (deviceId: string, port: 'top' | 'bottom' | 'left' | 'right') => void;
+  onConnectionPointClick?: (deviceId: string, port: Direction) => void;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   connectingFrom?: string | null;
@@ -74,15 +74,14 @@ export default function DeviceNode({
   const SIZE = 80;
 
   const getConnectionPoints = (): ConnectionPoint[] => {
-    const x = device.position.x;
-    const y = device.position.y;
+    const { x, y } = device.position;
     const offset = SIZE / 2;
 
     return [
-      { position: 'top', x, y: y - offset },
-      { position: 'bottom', x, y: y + offset },
-      { position: 'left', x: x - offset, y },
-      { position: 'right', x: x + offset, y },
+      { position: "top", x, y: y - offset },
+      { position: "bottom", x, y: y + offset },
+      { position: "left", x: x - offset,   y },
+      { position: "right", x: x + offset,  y },
     ];
   };
 

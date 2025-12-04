@@ -3,18 +3,23 @@ import { X } from 'lucide-react';
 
 interface DeviceConfigProps {
   device: Device;
-  onUpdate: (device: Device) => void;
+  onUpdate: (deviceId: string, updates: Partial<Device>) => void;
   onClose: () => void;
   onDelete: () => void;
 }
 
 export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: DeviceConfigProps) {
   const updateConfig = (updates: Partial<Device['config']>) => {
-    onUpdate({ ...device, config: { ...device.config, ...updates } });
+    onUpdate(device.id, {
+      config: {
+        ...device.config,
+        ...updates,
+      },
+    });
   };
 
   const updateName = (name: string) => {
-    onUpdate({ ...device, name });
+    onUpdate(device.id, { name });
   };
 
   return (
@@ -48,7 +53,7 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                   type="text"
                   value="INTERNET"
                   disabled
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-500"
+                  className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-500 cursor-not-allowed"
                 />
               </div>
             )}
@@ -245,7 +250,7 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
         {device.status === 'connected' ? (
           <button
             onClick={() => {
-              onUpdate({ ...device, status: 'disconnected' });
+              onUpdate(device.id, { status: 'disconnected' });
               onClose();
             }}
             className="flex-1 bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 transition-colors"
@@ -255,7 +260,7 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
         ) : (
           <button
             onClick={() => {
-              onUpdate({ ...device, status: 'connected' });
+              onUpdate(device.id, { status: 'connected' });
               onClose();
             }}
             className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"

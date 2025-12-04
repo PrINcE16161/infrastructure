@@ -1,7 +1,8 @@
 export type DeviceType = 'internet' | 'proxy' | 'isp' | 'router' | 'switch' | 'server' | 'pc';
 export type DeviceStatus = 'connected' | 'disconnected';
 export type Direction = 'top' | 'left' | 'right' | 'bottom';
-export type cableType = 'lan' | 'wan' | 'wireless';
+export type CableType = 'lan' | 'wan' | 'wireless';
+export type PacketStatus = 'success' | 'failed';
 
 export interface Position {
   x: number;
@@ -34,7 +35,7 @@ export interface Cable {
   to: string;
   fromPort: Direction;
   toPort: Direction;
-  type: cableType;
+  type: CableType;
   connected: boolean;
 }
 
@@ -43,7 +44,7 @@ export interface PacketLog {
   timestamp: number;
   from: string;
   to: string;
-  status: 'success' | 'failed';
+  status: PacketStatus;
   reason?: string;
 }
 
@@ -64,7 +65,7 @@ export interface ConnectionMenuProps {
   position: { x: number; y: number };
   sourceDevice: Device;
   devices: Device[];
-  onConnect: (targetId: string, cableType: cableType, port: Direction) => void;
+  onConnect: (targetId: string, cableType: CableType, port: Direction) => void;
   onSendPacket: (targetId: string) => void;
   onDisconnect: (targetId: string) => void;
   connectedDevices: string[];
