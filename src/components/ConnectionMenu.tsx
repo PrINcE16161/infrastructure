@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {Direction, ConnectionMenuProps } from '../types/network';
 import { Cable as CableIcon, Zap, Trash2, Radio } from 'lucide-react';
 
 export default function ConnectionMenu({
   position,
   sourceDevice,
+  cables,
   devices,
   onConnect,
   onSendPacket,
   onDisconnect,
-  connectedDevices
+  connectedDevices,
 }: ConnectionMenuProps) {
   
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export default function ConnectionMenu({
 
   const otherDevices = devices.filter(d => d.id !== sourceDevice.id);
 
-  const handlePortSelect = (port: 'top' | 'left' | 'bottom' | 'right') => {
+  const handlePortSelect = (port: Direction) => {
     if (selectedDevice && selectedCable) {
       onConnect(selectedDevice, selectedCable, port);
       setSelectedDevice(null);
@@ -25,6 +26,11 @@ export default function ConnectionMenu({
     }
   };
   const ports: Direction[] = ["left", "top", "bottom", "right"];
+
+  useEffect(() => {
+    setSelectedDevice(null);
+    setSelectedCable(null);
+  }, [position.x, position.y]);
 
   return (
     <div
@@ -93,6 +99,37 @@ export default function ConnectionMenu({
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
+                  {(() => {
+                    const cable = cables.find(
+                      c =>
+                        (c.from === sourceDevice.id && c.to === device.id) ||
+                        (c.to === sourceDevice.id && c.from === device.id)
+                    );
+
+                    if (!cable) return null;
+
+                    const label =
+                      cable.type === "wan"
+                        ? "WAN"
+                        : cable.type === "lan"
+                        ? "LAN"
+                        : "Wireless";
+
+                    const colorClass =
+                      cable.type === "wan"
+                        ? "text-blue-600 border-blue-300 bg-blue-50"
+                        : cable.type === "lan"
+                        ? "text-gray-700 border-gray-300 bg-gray-100"
+                        : "text-yellow-700 border-yellow-300 bg-yellow-100";
+
+                    return (
+                      <span
+                        className={`px-2 py-0.5 border rounded text-[10px] font-semibold ${colorClass}`}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </>
               )}
             </div>
@@ -102,6 +139,10 @@ export default function ConnectionMenu({
         {/* PORT SELECTOR POPUP */}
         {selectedDevice && selectedCable && (
           <div className="mb-3 p-2 bg-gray-50 border rounded-lg">
+            <div className="text-xs font-semibold text-gray-600 mb-1">
+              Select destination port of { otherDevices.find(d => d.id === selectedDevice)?.type === "internet" ? "INTERNET" : otherDevices.find(d => d.id === selectedDevice)?.name}
+            </div>
+
             <div className="grid grid-cols-4 gap-1">
               {ports.map((port) => (
                 <button
@@ -109,7 +150,7 @@ export default function ConnectionMenu({
                   onClick={() => handlePortSelect(port)}
                   className="px-2 py-1 bg-blue-50 rounded text-xs text-blue-700 hover:bg-blue-100"
                 >
-                  {port.charAt(0).toUpperCase()}
+                  {port.toUpperCase().charAt(0)}
                 </button>
               ))}
             </div>

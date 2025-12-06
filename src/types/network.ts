@@ -3,6 +3,7 @@ export type DeviceStatus = 'connected' | 'disconnected';
 export type Direction = 'top' | 'left' | 'right' | 'bottom';
 export type CableType = 'lan' | 'wan' | 'wireless';
 export type PacketStatus = 'success' | 'failed';
+//export type UserRole = 'admin' | 'editor' | 'viewer';
 
 export interface Position {
   x: number;
@@ -64,9 +65,19 @@ export interface NetworkState {
 export interface ConnectionMenuProps {
   position: { x: number; y: number };
   sourceDevice: Device;
+  cables: Cable[];
   devices: Device[];
-  onConnect: (targetId: string, cableType: CableType, port: Direction) => void;
+  onConnect: (targetId: string, cableType: CableType, toPort?: Direction) => void;
   onSendPacket: (targetId: string) => void;
   onDisconnect: (targetId: string) => void;
   connectedDevices: string[];
+  selectedPort?: Direction;
+  selectedDevicePort?: Direction;
 }
+
+// export interface User {
+//   id: string;
+//   name: string;
+//   role: UserRole;
+//   email: string;
+// }

@@ -192,18 +192,23 @@ function App() {
     }
   }, []);
 
-  const handleConnectionPointClick = useCallback((deviceId: string, port: 'top'|'bottom'|'left'|'right', e?: React.MouseEvent) => {
-    // find device
-    const dev = state.devices.find(d => d.id === deviceId);
-    if (!dev) return;
+  const handleConnectionPointClick = useCallback(
+    (deviceId: string, port: 'top' | 'bottom' | 'left' | 'right', e?: React.MouseEvent) => {
+      const dev = state.devices.find(d => d.id === deviceId);
+      if (!dev) return;
 
-    // position for the menu: prefer event client coordinates if provided
-    const pos = e && 'clientX' in e ? { x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY } : { x: dev.position.x, y: dev.position.y };
+      const pos = e
+        ? { x: e.clientX, y: e.clientY }
+        : { x: dev.position.x, y: dev.position.y };
 
-    // set connection menu to open at that pos and store connecting info
-    setConnecting({ deviceId, port, x: pos.x, y: pos.y });
-    setConnectionMenu({ device: dev, position: pos });
-  }, [state.devices]);
+      // store only device + port
+      setConnecting({ deviceId, port });
+
+      // show menu at click position
+      setConnectionMenu({ device: dev, position: pos });
+    },
+    [state.devices]
+  );
 
   const removeCable = useCallback((from: string, to: string) => {
     setState(prev => ({
@@ -367,28 +372,30 @@ function App() {
       )}
 
       {connectionMenu && (
-        <ConnectionMenu
+        <ConnectionMenu key={Date.now()}
           position={connectionMenu.position}
           sourceDevice={connectionMenu.device}
+          cables={state.cables}
           devices={state.devices}
-          onConnect={(targetId, cableType) => {
-            // if user started connection by clicking a port, use that as fromPort
-            if (connecting) {
-              const fromDevice = state.devices.find(d => d.id === connecting.deviceId)!;
-              const toDevice = state.devices.find(d => d.id === targetId)!;
-              const fromPort = connecting.port;
-              const toPort = computeClosestPort(fromDevice, toDevice);
-              addCable(connecting.deviceId, targetId, cableType, fromPort, toPort);
-            } else {
-              // fallback: connect device centers using default ports
-              const fromPort = 'right';
-              const toPort = 'left';
-              addCable(connectionMenu.device.id, targetId, cableType, fromPort, toPort);
-            }
-            // close menu & connecting state
-            setConnectionMenu(null);
-            setConnecting(null);
-          }}
+          onConnect={(targetId, cableType, userChosenToPort) => {
+          if (connecting) {
+            const fromPort = connecting.port;
+            const toPort = userChosenToPort ??
+              computeClosestPort(
+                state.devices.find(d => d.id === connecting.deviceId)!,
+                state.devices.find(d => d.id === targetId)!
+              );
+
+            addCable(connecting.deviceId, targetId, cableType, fromPort, toPort);
+          } else {
+            const fromPort = 'right';
+            const toPort = userChosenToPort ?? 'left';
+            addCable(connectionMenu.device.id, targetId, cableType, fromPort, toPort);
+          }
+
+          setConnectionMenu(null);
+          setConnecting(null);
+        }}
           onSendPacket={(targetId) => sendPacket(connectionMenu.device.id, targetId)}
           onDisconnect={(targetId) => removeCable(connectionMenu.device.id, targetId)}
           connectedDevices={getConnectedDevices(connectionMenu.device.id)}
