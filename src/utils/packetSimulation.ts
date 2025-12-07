@@ -40,6 +40,28 @@ const findPath = (
   return null;
 };
 
+const getDeviceIp = (device: Device): string => {
+  switch (device.type) {
+
+    case "pc":
+    case "server":
+    case "router":
+      return device.config.internalIp || device.config.wanIp || "";
+
+    case "proxy":
+      return device.config.ipAddress || "";
+
+    case "isp":
+      return device.config.wanIp || "";
+
+    case "internet":
+      return "0.0.0.0"; // special, always reachable
+
+    default:
+      return "";
+  }
+};
+
 export const simulatePacket = (
   fromId: string,
   toId: string,
@@ -63,11 +85,35 @@ export const simulatePacket = (
     return { success: false, reason: 'No route to host', path: [] };
   }
 
-  const fromIp = fromDevice.config.internalIp || '';
-  const toIp = toDevice.config.internalIp || '';
+  const fromIp = getDeviceIp(fromDevice);
+  const toIp = getDeviceIp(toDevice);
 
   if (!fromIp || !toIp) {
     return { success: false, reason: 'IP not configured', path };
+  }
+
+  if (fromDevice.type === "internet") {
+    if (toDevice.type === "proxy") {
+      const proxyIp = toDevice.config.ipAddress;
+
+      if (!proxyIp) {
+        return { success: false, reason: "Proxy has no IP address", path };
+      }
+
+      const nsRecord = toDevice.config.ns1 && toDevice.config.ns2;
+
+      if(!nsRecord) {
+        return { success: false, reason: "Proxy has no DNS Record", path };
+      }
+
+      return { success: true, path };
+    }
+
+    if (!toIp) {
+      return { success: false, reason: "Destination has no IP address", path };
+    }
+
+    return { success: true, path };
   }
 
   if (toDevice.type === 'server' && toDevice.config.ports) {

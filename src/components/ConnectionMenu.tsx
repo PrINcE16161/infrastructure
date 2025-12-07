@@ -12,11 +12,27 @@ export default function ConnectionMenu({
   onDisconnect,
   connectedDevices,
 }: ConnectionMenuProps) {
+  const deviceOrder: Record<string, number> = {
+    internet: 1,
+    proxy: 2,
+    isp: 3,
+    router: 4,
+    switch: 5,
+    server: 6,
+    pc: 7,
+    other: 999
+  };
   
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [selectedCable, setSelectedCable] = useState<'lan' | 'wan' | 'wireless' | null>(null);
 
-  const otherDevices = devices.filter(d => d.id !== sourceDevice.id);
+  const otherDevices = devices
+  .filter(d => d.id !== sourceDevice.id)
+  .sort((a, b) => {
+    const orderA = deviceOrder[a.type] ?? deviceOrder.other;
+    const orderB = deviceOrder[b.type] ?? deviceOrder.other;
+    return orderA - orderB;
+  });
 
   const handlePortSelect = (port: Direction) => {
     if (selectedDevice && selectedCable) {
@@ -34,14 +50,14 @@ export default function ConnectionMenu({
 
   return (
     <div
-      className="fixed bg-white rounded-lg shadow-xl p-3 z-50 max-h-96 overflow-y-auto"
+      className="fixed bg-white rounded-lg shadow-xl p-3 z-50"
       style={{ left: position.x, top: position.y }}
     >
       <div className="text-sm font-semibold text-gray-700 mb-2">
         {sourceDevice.type === 'internet' ? 'INTERNET' : sourceDevice.name}
       </div>
 
-      <div className="space-y-1">
+      <div className="max-h-36 space-y-1 pr-2 overflow-y-auto">
         {otherDevices.map(device => {
           const isConnected = connectedDevices.includes(device.id);
 

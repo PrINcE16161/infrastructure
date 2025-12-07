@@ -5,29 +5,34 @@ interface CanvasProps {
   devices: Device[];
   cables: Cable[];
   animatingPath: string[];
+  animationProgress: number;
   animationSuccess: boolean;
 }
 
 // 🔵 Helper: calculate the port-to-cable coordinates
 function getPortPosition(device: Device, port: 'top' | 'bottom' | 'left' | 'right') {
-  const size = 80; // your device card width/height
+  const size = 80;
   const half = size / 2;
 
   switch (port) {
-    case 'top':
-      return { x: device.position.x, y: device.position.y - half };
-    case 'bottom':
-      return { x: device.position.x, y: device.position.y + half };
-    case 'left':
-      return { x: device.position.x - half, y: device.position.y };
-    case 'right':
-      return { x: device.position.x + half, y: device.position.y };
-    default:
-      return { x: device.position.x, y: device.position.y };
+    case 'top': return { x: device.position.x, y: device.position.y - half };
+    case 'bottom': return { x: device.position.x, y: device.position.y + half };
+    case 'left': return { x: device.position.x - half, y: device.position.y };
+    case 'right': return { x: device.position.x + half, y: device.position.y };
+    default: return { x: device.position.x, y: device.position.y };
   }
 }
 
-export default function Canvas({ devices, cables, animatingPath, animationSuccess }: CanvasProps) {
+function getCorrectPort(cable: Cable, fromId: string, toId: string) {
+  if (cable.from === fromId) {
+    return { fromPort: cable.fromPort, toPort: cable.toPort };
+  } else {
+    // 🔥 Reverse direction → swap ports
+    return { fromPort: cable.toPort, toPort: cable.fromPort };
+  }
+}
+
+export default function Canvas({ devices, cables, animatingPath, animationProgress, animationSuccess }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -42,16 +47,14 @@ export default function Canvas({ devices, cables, animatingPath, animationSucces
 
     ctx.clearRect(0, 0, width, height);
 
-    // 🔵 Canvas background color  
-    ctx.fillStyle = "#f1f5f9"; // ← change your color here  
+    // Background
+    ctx.fillStyle = "#f1f5f9";
     ctx.fillRect(0, 0, width, height);
 
-    // ---------------------------------------------------
-    // ⭐ NEW: Draw 1x1 dotted background grid
-    // ---------------------------------------------------
-    const spacing = 20; // distance between dots
-    const dotRadius = 1; // dot size
-    ctx.fillStyle = "rgba(0, 0, 0, 0.15)"; // faint gray dots
+    // Dotted grid
+    const spacing = 20;
+    const dotRadius = 1;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
 
     for (let x = 0; x < width; x += spacing) {
       for (let y = 0; y < height; y += spacing) {
@@ -60,8 +63,8 @@ export default function Canvas({ devices, cables, animatingPath, animationSucces
         ctx.fill();
       }
     }
-    // ---------------------------------------------------
 
+    // Draw cables
     cables.forEach(cable => {
       const fromDevice = devices.find(d => d.id === cable.from);
       const toDevice = devices.find(d => d.id === cable.to);
@@ -72,109 +75,116 @@ export default function Canvas({ devices, cables, animatingPath, animationSucces
       const fromPos = getPortPosition(fromDevice, cable.fromPort || 'right');
       const toPos = getPortPosition(toDevice, cable.toPort || 'left');
 
-      // ctx.beginPath();
-      // ctx.moveTo(fromPos.x, fromPos.y);
-      // ctx.lineTo(toPos.x, toPos.y);
-
-      // 🎯 90-degree routing with curved corners
-      ctx.beginPath();
-
       const dx = toPos.x - fromPos.x;
       const dy = toPos.y - fromPos.y;
-      const curveRadius = 15; // Radius of the corner curves
+      const curveRadius = 15;
 
-      // Determine routing based on port directions
-      const isHorizontalFirst = cable.fromPort === 'right' || cable.fromPort === 'left';
-      const isVerticalFirst = cable.fromPort === 'top' || cable.fromPort === 'bottom';
+      ctx.beginPath();
+      ctx.moveTo(fromPos.x, fromPos.y);
 
-      // Check if nodes are aligned (straight line)
       const isAlignedHorizontal = Math.abs(dy) < 5;
       const isAlignedVertical = Math.abs(dx) < 5;
+      const isHorizontalFirst = cable.fromPort === "right" || cable.fromPort === "left";
 
       if (isAlignedHorizontal || isAlignedVertical) {
-        // Straight line connection
-        ctx.moveTo(fromPos.x, fromPos.y);
         ctx.lineTo(toPos.x, toPos.y);
       } else {
-        // 90-degree routing with curve
-        ctx.moveTo(fromPos.x, fromPos.y);
-
         if (isHorizontalFirst) {
-          // Go horizontal first, then vertical
           const cornerX = toPos.x;
           const cornerY = fromPos.y;
-          
-          // Horizontal segment (with curve approach)
           const horizontalEnd = cornerX - (dx > 0 ? curveRadius : -curveRadius);
+
           ctx.lineTo(horizontalEnd, fromPos.y);
-          
-          // Curved corner
           ctx.arcTo(cornerX, cornerY, cornerX, toPos.y, curveRadius);
-          
-          // Vertical segment to end
           ctx.lineTo(toPos.x, toPos.y);
         } else {
-          // Go vertical first, then horizontal
           const cornerX = fromPos.x;
           const cornerY = toPos.y;
-          
-          // Vertical segment (with curve approach)
           const verticalEnd = cornerY - (dy > 0 ? curveRadius : -curveRadius);
+
           ctx.lineTo(fromPos.x, verticalEnd);
-          
-          // Curved corner
           ctx.arcTo(cornerX, cornerY, toPos.x, cornerY, curveRadius);
-          
-          // Horizontal segment to end
           ctx.lineTo(toPos.x, toPos.y);
         }
       }
 
-      if (cable.connected) {
-        switch (cable.type) {
-          case 'wan':
-            ctx.strokeStyle = '#3b82f6'; // blue
-            break;
-          case 'lan':
-            ctx.strokeStyle = '#808080ff';
-            break;
-          default:
-            ctx.strokeStyle = '#ef4444'; // red (fallback)
-        }
-        ctx.lineWidth = 2;
-      } else {
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-      }
+      ctx.strokeStyle = cable.connected
+        ? cable.type === "wan" ? "#3b82f6" : "#808080ff"
+        : "#ef4444";
+
+      ctx.lineWidth = 2;
+      if (!cable.connected) ctx.setLineDash([5, 5]);
 
       ctx.stroke();
       ctx.setLineDash([]);
     });
 
+    // 🔥 Animated dotted path
     if (animatingPath.length > 1) {
       for (let i = 0; i < animatingPath.length - 1; i++) {
+
         const fromDevice = devices.find(d => d.id === animatingPath[i]);
         const toDevice = devices.find(d => d.id === animatingPath[i + 1]);
+        const cable = cables.find(
+          c =>
+            (c.from === fromDevice?.id && c.to === toDevice?.id) ||
+            (c.to === fromDevice?.id && c.from === toDevice?.id)
+        );
 
-        if (!fromDevice || !toDevice) continue;
+        if (!fromDevice || !toDevice || !cable) continue;
 
-        ctx.beginPath();
-        ctx.moveTo(fromDevice.position.x, fromDevice.position.y);
-        ctx.lineTo(toDevice.position.x, toDevice.position.y);
-        ctx.strokeStyle = animationSuccess ? '#10b981' : '#ef4444';
+        // 🔥 Get correct directional ports
+        const { fromPort, toPort } = getCorrectPort(cable, fromDevice.id, toDevice.id);
+
+        const fromPos = getPortPosition(fromDevice, fromPort || "right");
+        const toPos = getPortPosition(toDevice, toPort || "left");
+
+        const dx = toPos.x - fromPos.x;
+        const dy = toPos.y - fromPos.y;
+        const curveRadius = 15;
+
+        const isStraight = Math.abs(dx) < 5 || Math.abs(dy) < 5;
+
+        // 🔥 IMPORTANT FIX – use reversed ports!
+        const isHorizontalFirst = fromPort === "right" || fromPort === "left";
+
+        const path = new Path2D();
+        path.moveTo(fromPos.x, fromPos.y);
+
+        if (isStraight) {
+          path.lineTo(toPos.x, toPos.y);
+        } else {
+          if (isHorizontalFirst) {
+            const cornerX = toPos.x;
+            const cornerY = fromPos.y;
+            const horizontalEnd = cornerX - (dx > 0 ? curveRadius : -curveRadius);
+
+            path.lineTo(horizontalEnd, fromPos.y);
+            path.arcTo(cornerX, cornerY, cornerX, toPos.y, curveRadius);
+            path.lineTo(toPos.x, toPos.y);
+
+          } else {
+            const cornerX = fromPos.x;
+            const cornerY = toPos.y;
+            const verticalEnd = cornerY - (dy > 0 ? curveRadius : -curveRadius);
+
+            path.lineTo(fromPos.x, verticalEnd);
+            path.arcTo(cornerX, cornerY, toPos.x, cornerY, curveRadius);
+            path.lineTo(toPos.x, toPos.y);
+          }
+        }
+
+        // dotted animated stroke
+        ctx.save();
         ctx.lineWidth = 4;
-        ctx.stroke();
-
-        const midX = (fromDevice.position.x + toDevice.position.x) / 2;
-        const midY = (fromDevice.position.y + toDevice.position.y) / 2;
-        ctx.beginPath();
-        ctx.arc(midX, midY, 6, 0, Math.PI * 2);
-        ctx.fillStyle = animationSuccess ? '#10b981' : '#ef4444';
-        ctx.fill();
+        ctx.strokeStyle = animationSuccess ? "#10b981" : "#ef4444";
+        ctx.setLineDash([10, 10]);
+        ctx.lineDashOffset = 300 * (1 - animationProgress);
+        ctx.stroke(path);
+        ctx.restore();
       }
     }
-  }, [devices, cables, animatingPath, animationSuccess]);
+  }, [devices, cables, animatingPath, animationProgress, animationSuccess]);
 
   return (
     <canvas

@@ -29,10 +29,27 @@ function App() {
     device: Device;
     position: { x: number; y: number };
   } | null>(null);
+  const [animationProgress, setAnimationProgress] = useState(0);
   const [draggingDevice, setDraggingDevice] = useState<string | null>(null);
   const [animatingPath, setAnimatingPath] = useState<string[]>([]);
   const [animationSuccess, setAnimationSuccess] = useState(false);
   
+  useEffect(() => {
+    if (animatingPath.length < 2) return;
+
+    let start = performance.now();
+    const duration = 2500;
+
+    function tick(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      setAnimationProgress(t);
+
+      if (t < 1) requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+  }, [animatingPath]);
+
   useEffect(() => {
     const token = loadAuthToken();
     if (token) {
@@ -343,6 +360,7 @@ function App() {
           devices={state.devices}
           cables={state.cables}
           animatingPath={animatingPath}
+          animationProgress={animationProgress}
           animationSuccess={animationSuccess}
         />
 

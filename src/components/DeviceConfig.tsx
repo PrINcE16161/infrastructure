@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Device } from '../types/network';
 import { X } from 'lucide-react';
 
@@ -8,28 +9,76 @@ interface DeviceConfigProps {
   onDelete: () => void;
 }
 
+function deepEqual(a: any, b: any) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: DeviceConfigProps) {
-  const updateConfig = (updates: Partial<Device['config']>) => {
-    onUpdate(device.id, {
-      config: {
-        ...device.config,
-        ...updates,
-      },
-    });
+  // Local editable copies — do NOT write to global state until Save
+  const [localName, setLocalName] = useState(device.name);
+  const [localConfig, setLocalConfig] = useState({ ...device.config });
+
+  // Validation state
+  const [dnsError, setDnsError] = useState('');
+
+  // When the device prop changes (opening a different device), reinitialize local state
+  useEffect(() => {
+    setLocalName(device.name);
+    setLocalConfig({ ...device.config });
+    setDnsError('');
+  }, [device]);
+
+  // Helper to update the localConfig
+  const setLocal = (updates: Partial<Device['config']>) => {
+    setLocalConfig(prev => ({ ...prev, ...updates }));
   };
 
-  const updateName = (name: string) => {
-    onUpdate(device.id, { name });
+  // Dirty check: either name changed or config changed
+  const dirty = !(
+    localName === device.name && deepEqual(localConfig, device.config)
+  );
+
+  // DNS validation watcher (ns1 / ns2 unique)
+  useEffect(() => {
+    if ((localConfig.ns1 || '') && (localConfig.ns2 || '') && localConfig.ns1 === localConfig.ns2) {
+      setDnsError('NS1 and NS2 cannot be the same.');
+    } else {
+      setDnsError('');
+    }
+  }, [localConfig.ns1, localConfig.ns2]);
+
+  // Save handler: only call onUpdate when there's actually a change
+  const handleSave = () => {
+    if (!dirty || dnsError) {
+      // nothing to do or invalid
+      return;
+    }
+
+    const updates: Partial<Device> = {};
+    if (localName !== device.name) updates.name = localName;
+    if (!deepEqual(localConfig, device.config)) updates.config = { ...localConfig };
+
+    onUpdate(device.id, updates);
+    onClose();
   };
 
+  // Cancel/Close: discard local edits
+  const handleClose = () => {
+    onClose();
+  };
+
+  // Prevent clicks inside modal from bubbling up and closing via parent onClick
   return (
-    <div className="absolute right-20 top-4 w-80 bg-white rounded-lg border border-gray-200 z-10">
+    <div
+      className="absolute right-20 top-4 w-80 bg-white rounded-lg border border-gray-200 z-10"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="bg-white rounded-lg shadow-xl p-6 w-96 max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">
             Configure {device.type === 'internet' ? 'INTERNET' : device.type.toUpperCase()}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={handleClose} className="text-gray-500 hover:text-gray-700">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -41,8 +90,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <label className="block text-sm font-medium text-gray-700 mb-1">Device Name</label>
                 <input
                   type="text"
-                  value={device.name}
-                  onChange={(e) => updateName(e.target.value)}
+                  value={localName}
+                  onChange={(e) => setLocalName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -61,25 +110,77 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
 
           {device.type === 'proxy' && (
             <>
+              {/* IP Address */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Internal IP</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Proxy IP Address
+                </label>
                 <input
                   type="text"
-                  placeholder="192.168.1.100"
-                  value={device.config.internalIp || ''}
-                  onChange={(e) => updateConfig({ internalIp: e.target.value })}
+                  placeholder="203.0.113.5"
+                  value={localConfig.ipAddress || ""}
+                  onChange={(e) => setLocal({ ipAddress: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* TOGGLE: DNS Only / Proxied */}
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-sm font-medium text-gray-700">
+                  Proxy Status:
+                </span>
+
+                {(() => {
+                  const isProxied = localConfig.proxied ?? true; // DEFAULT TO ON
+
+                  return (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-700">
+                        {isProxied ? "Proxied" : "DNS Only"}
+                      </span>
+
+                      <button
+                        onClick={() => setLocal({ proxied: !isProxied })}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isProxied ? "bg-orange-500" : "bg-gray-300"}`}
+                        type="button"
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isProxied ? "translate-x-6" : "translate-x-1"}`}
+                        />
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* DNS */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gateway</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  DNS Record
+                </label>
+
+                {/* NS1 */}
                 <input
                   type="text"
-                  placeholder="192.168.1.1"
-                  value={device.config.gateway || ''}
-                  onChange={(e) => updateConfig({ gateway: e.target.value })}
+                  placeholder="ns1.dns-parking.com"
+                  value={localConfig.ns1 || ""}
+                  onChange={(e) => setLocal({ ns1: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                />
+
+                {/* NS2 */}
+                <input
+                  type="text"
+                  placeholder="ns2.dns-parking.com"
+                  value={localConfig.ns2 || ""}
+                  onChange={(e) => setLocal({ ns2: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+
+                {/* Inline Error Message */}
+                {dnsError && (
+                  <p className="text-red-500 text-sm mt-1">{dnsError}</p>
+                )}
               </div>
             </>
           )}
@@ -91,8 +192,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <input
                   type="text"
                   placeholder="192.168.1.1"
-                  value={device.config.internalIp || ''}
-                  onChange={(e) => updateConfig({ internalIp: e.target.value })}
+                  value={localConfig.internalIp || ''}
+                  onChange={(e) => setLocal({ internalIp: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -101,42 +202,70 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <input
                   type="text"
                   placeholder="10.0.0.1"
-                  value={device.config.wanIp || ''}
-                  onChange={(e) => updateConfig({ wanIp: e.target.value })}
+                  value={localConfig.wanIp || ''}
+                  onChange={(e) => setLocal({ wanIp: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={device.config.dhcpEnabled || false}
-                  onChange={(e) => updateConfig({ dhcpEnabled: e.target.checked })}
+                  checked={localConfig.dhcpEnabled || false}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setLocal({
+                        dhcpEnabled: true,
+                        dhcpRange: {
+                          start: localConfig.dhcpRange?.start || "",
+                          end: localConfig.dhcpRange?.end || ""
+                        }
+                      });
+                    } else {
+                      setLocal({ dhcpEnabled: false });
+                    }
+                  }}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <label className="ml-2 text-sm font-medium text-gray-700">Enable DHCP</label>
               </div>
-              {device.config.dhcpEnabled && (
+              {localConfig.dhcpEnabled && (
                 <div className="pl-6 space-y-2">
                   <input
                     type="text"
                     placeholder="Start: 192.168.1.100"
-                    value={device.config.dhcpRange?.start || ''}
-                    onChange={(e) =>
-                      updateConfig({
-                        dhcpRange: { ...device.config.dhcpRange!, start: e.target.value }
-                      })
+                    value={localConfig.dhcpRange?.start || ''}
+                    onChange={(e) => {
+                    if (e.target.checked) {
+                      setLocal({
+                        dhcpEnabled: true,
+                        dhcpRange: {
+                          start: localConfig.dhcpRange?.start || "",
+                          end: localConfig.dhcpRange?.end || ""
+                        }
+                      });
+                    } else {
+                      setLocal({ dhcpEnabled: false });
                     }
+                  }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
                     placeholder="End: 192.168.1.200"
-                    value={device.config.dhcpRange?.end || ''}
-                    onChange={(e) =>
-                      updateConfig({
-                        dhcpRange: { ...device.config.dhcpRange!, end: e.target.value }
-                      })
-                    }
+                    value={localConfig.dhcpRange?.end || ''}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setLocal({
+                          dhcpEnabled: true,
+                          dhcpRange: {
+                            start: localConfig.dhcpRange?.start || "",
+                            end: localConfig.dhcpRange?.end || ""
+                          }
+                        });
+                      } else {
+                        setLocal({ dhcpEnabled: false });
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -144,8 +273,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={device.config.natEnabled || false}
-                  onChange={(e) => updateConfig({ natEnabled: e.target.checked })}
+                  checked={localConfig.natEnabled || false}
+                  onChange={(e) => setLocal({ natEnabled: e.target.checked })}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <label className="ml-2 text-sm font-medium text-gray-700">Enable NAT</label>
@@ -160,8 +289,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <input
                   type="text"
                   placeholder="192.168.1.10"
-                  value={device.config.internalIp || ''}
-                  onChange={(e) => updateConfig({ internalIp: e.target.value })}
+                  value={localConfig.internalIp || ''}
+                  onChange={(e) => setLocal({ internalIp: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -172,9 +301,9 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <input
                   type="text"
                   placeholder="22, 80, 443"
-                  value={(device.config.ports || []).join(', ')}
+                  value={(localConfig.ports || []).join(', ')}
                   onChange={(e) =>
-                    updateConfig({
+                    setLocal({
                       ports: e.target.value
                         .split(',')
                         .map(p => parseInt(p.trim()))
@@ -194,8 +323,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <input
                   type="text"
                   placeholder="192.168.1.100"
-                  value={device.config.internalIp || ''}
-                  onChange={(e) => updateConfig({ internalIp: e.target.value })}
+                  value={localConfig.internalIp || ''}
+                  onChange={(e) => setLocal({ internalIp: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -204,8 +333,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
                 <input
                   type="text"
                   placeholder="192.168.1.1"
-                  value={device.config.gateway || ''}
-                  onChange={(e) => updateConfig({ gateway: e.target.value })}
+                  value={localConfig.gateway || ''}
+                  onChange={(e) => setLocal({ gateway: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -220,9 +349,9 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
               <input
                 type="text"
                 placeholder="1, 2, 3, 4, 5, 6, 7, 8"
-                value={(device.config.portList || []).join(', ')}
+                value={(localConfig.portList || []).join(', ')}
                 onChange={(e) =>
-                  updateConfig({
+                  setLocal({
                     portList: e.target.value.split(',').map(p => p.trim()).filter(p => p)
                   })
                 }
@@ -237,8 +366,8 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
               <input
                 type="text"
                 placeholder="203.0.113.1"
-                value={device.config.wanIp || ''}
-                onChange={(e) => updateConfig({ wanIp: e.target.value })}
+                value={localConfig.wanIp || ''}
+                onChange={(e) => setLocal({ wanIp: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -246,46 +375,49 @@ export default function DeviceConfig({ device, onUpdate, onClose, onDelete }: De
         </div>
 
         <div className="flex gap-2 mt-6">
-        {/* CONNECT / DISCONNECT BUTTON */}
-        {device.status === 'connected' ? (
+          {/* CONNECT / DISCONNECT BUTTON */}
+          {device.status === 'connected' ? (
+            <button
+              onClick={() => {
+                onUpdate(device.id, { status: 'disconnected' });
+                onClose();
+              }}
+              className="flex-1 bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 transition-colors"
+            >
+              Disconnect
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                onUpdate(device.id, { status: 'connected' });
+                onClose();
+              }}
+              className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
+            >
+              Connect
+            </button>
+          )}
+
+          {/* DELETE BUTTON */}
           <button
-            onClick={() => {
-              onUpdate(device.id, { status: 'disconnected' });
-              onClose();
-            }}
-            className="flex-1 bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 transition-colors"
+            onClick={onDelete}
+            className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
           >
-            Disconnect
+            Delete
           </button>
-        ) : (
+
+          {/* SAVE BUTTON */}
           <button
-            onClick={() => {
-              onUpdate(device.id, { status: 'connected' });
-              onClose();
-            }}
-            className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
+            onClick={handleSave}
+            disabled={!dirty || !!dnsError}
+            className={`flex-1 py-2 px-4 rounded-md transition-colors 
+              ${(!dirty || dnsError) ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"}
+            `}
           >
-            Connect
+            Save
           </button>
-        )}
 
-        {/* DELETE BUTTON (fixed missing space) */}
-        <button
-          onClick={onDelete}
-          className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
-        >
-          Delete
-        </button>
-
-        {/* SAVE BUTTON */}
-        <button
-          onClick={onClose}
-          className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Save
-        </button>
-
-      </div>
+        </div>
       </div>
     </div>
   );

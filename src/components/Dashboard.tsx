@@ -95,7 +95,7 @@ export default function Dashboard({ stats, logs }: DashboardProps) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 pr-2 overflow-y-auto">
             <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent Activity</h4>
 
             <div className="space-y-1">

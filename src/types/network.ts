@@ -28,6 +28,10 @@ export interface DeviceConfig {
   ports?: number[];
   gateway?: string;
   portList?: string[];
+  ipAddress?: string;
+  ns1?: string;
+  ns2?: string;
+  proxied?: boolean;
 }
 
 export interface Cable {
